@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Casos de práctica</title>
+</head>
+<body>
+  <main>
+    <h1>Casos de práctica</h1>
+    <p><a href="/contenidos/">Leer temas teóricos</a></p>
+    <p id="estado" role="status"></p>
+    {% for caso in casos %}
+      <article>
+        <h2>{{ caso.titulo }}</h2>
+        <p>{{ caso.descripcion_escenario }}</p>
+        <p>Dificultad: {{ caso.get_dificultad_display }}</p>
+        {% if caso.tema_teorico and caso.tema_teorico.publicado %}<p>Tema: <a href="{% url 'contenidos:detalle_tema' caso.tema_teorico.id %}">{{ caso.tema_teorico.titulo }}</a></p>{% endif %}
+        <button type="button" data-url="{% url 'simulador:iniciar_intento' caso.id %}">Iniciar o repetir práctica</button>
+      </article>
+    {% empty %}
+      <p>Aún no hay casos activos.</p>
+    {% endfor %}
+  </main>
+  <script>
+    const csrf = document.cookie.split('; ').find((fila) => fila.startsWith('csrftoken='))?.split('=')[1] || '';
+    document.querySelectorAll('button[data-url]').forEach((boton) => {
+      boton.addEventListener('click', async () => {
+        boton.disabled = true;
+        try {
+          const respuesta = await fetch(boton.dataset.url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+            body: '{}'
+          });
+          const resultado = await respuesta.json();
+          if (!respuesta.ok) throw new Error(resultado.mensaje || 'No se pudo iniciar el intento.');
+          window.location.href = resultado.url;
+        } catch (error) {
+          document.querySelector('#estado').textContent = error.message;
+          boton.disabled = false;
+        }
+      });
+    });
+  </script>
+</body>
+</html>

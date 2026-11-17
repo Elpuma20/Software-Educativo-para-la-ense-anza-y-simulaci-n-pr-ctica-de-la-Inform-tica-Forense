@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Intento de simulación {{ intento.numero_intento }}</title>
+</head>
+<body>
+  <main>
+    <h1>{{ intento.caso_forense.titulo }}</h1>
+    <p>{{ intento.caso_forense.descripcion_escenario }}</p>
+    <p>Intento {{ intento.numero_intento }} · {{ intento.get_estado_display }}</p>
+
+    <h2>Registro cronológico de actuaciones</h2>
+    <ol id="actuaciones">
+      {% for actuacion in actuaciones %}<li>{{ actuacion.get_tipo_accion_display }}: {{ actuacion.detalle }} — {% if actuacion.es_correcta %}correcta{% else %}falta procedimental{% endif %}</li>
+      {% empty %}<li>Aún no hay actuaciones registradas.</li>{% endfor %}
+    </ol>
+
+    {% if intento.estado == "COMPLETADO" %}
+      <h2>Resultado</h2>
+      <p>Puntaje procedimental automático: {{ intento.puntaje_automatico }}/100</p>
+      {% if intento.puntaje_docente %}<p>Puntaje docente: {{ intento.puntaje_docente }}/100</p>{% endif %}
+      {% if intento.retroalimentacion %}<p>Retroalimentación: {{ intento.retroalimentacion }}</p>{% endif %}
+    {% else %}
+      <p><a href="{% url 'simulador:descargar_evidencia' intento.id %}">Descargar evidencia sintética</a></p>
+      <p id="retroalimentacion" role="status"></p>
+      <form id="accion-form">
+        {% csrf_token %}
+        <label for="tipo-accion">Acción</label>
+        <select id="tipo-accion" required>
+          <option value="DESCARGA_EVIDENCIA">Descargar evidencia</option>
+          <option value="CREACION_COPIA_TRABAJO">Crear copia de trabajo</option>
+          <option value="VERIFICACION_HASH">Verificar hash</option>
+          <option value="INSPECCION_LOGS">Inspeccionar registros</option>
+          <option value="IDENTIFICACION_INDICIO">Identificar indicio</option>
+          <option value="EXTRACCION_METADATOS">Extraer metadatos</option>
+        </select>
+        <label for="detalle">Detalle</label>
+        <input id="detalle" maxlength="4000">
+        <label for="objetivo">Objetivo del análisis</label>
+        <select id="objetivo"><option value="COPIA_TRABAJO">Copia de trabajo</option><option value="ORIGINAL">Original</option></select>
+        <button type="submit">Registrar actuación</button>
+      </form>
+
+      <h2>Cadena de custodia y cierre</h2>
+      <form id="custodia-form">
+        {% csrf_token %}
+        <label>Identificador de evidencia <input name="identificador_evidencia" required value="LAB-IMG-001"></label>
+        <label>Descripción <textarea name="descripcion" required>Archivo sintético recibido para práctica académica</textarea></label>
+        <label>Hash SHA-256 registrado <input name="hash_registrado" minlength="64" maxlength="64" required></label>
+        <label>Fecha y hora de recolección <input name="fecha_hora_recoleccion" type="datetime-local" required></label>
+        <label>Origen <input name="origen" required value="Laboratorio universitario"></label>
+        <label>Destino o transferencia <input name="destino_transferencia" required value="Estación de análisis 01"></label>
+        <label>Propósito del traslado <textarea name="proposito_traslado" required>Análisis en copia de trabajo</textarea></label>
+        <label>Observaciones <textarea name="observaciones"></textarea></label>
+        <button type="submit">Guardar custodia y finalizar</button>
+      </form>
+      <p id="resultado" role="status"></p>
+      <script>
+        const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        document.querySelector('#accion-form').addEventListener('submit', async (evento) => {
+          evento.preventDefault();
+          const respuesta = await fetch('/api/simulador/registrar-accion/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+            body: JSON.stringify({
+              intento_id: {{ intento.id }},
+              tipo_accion: document.querySelector('#tipo-accion').value,
+              detalle: document.querySelector('#detalle').value,
+              objetivo: document.querySelector('#objetivo').value
+            })
+          });
+          const resultado = await respuesta.json();
+          document.querySelector('#retroalimentacion').textContent = resultado.mensaje;
+          if (respuesta.ok) {
+            const fila = document.createElement('li');
+            fila.textContent = `${resultado.tipo_accion}: ${resultado.mensaje}`;
+            document.querySelector('#actuaciones').append(fila);
+          }
+        });
+        document.querySelector('#custodia-form').addEventListener('submit', async (evento) => {
+          evento.preventDefault();
+          const datos = Object.fromEntries(new FormData(evento.currentTarget).entries());
+          const respuesta = await fetch('/api/evaluacion/intentos/{{ intento.id }}/finalizar/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+            body: JSON.stringify({cadena_custodia: datos})
+          });
+          const resultado = await respuesta.json();
+          document.querySelector('#resultado').textContent = respuesta.ok
+            ? `${resultado.mensaje} Puntaje automático: ${resultado.puntaje_automatico}/100.`
+            : resultado.mensaje;
+        });
+      </script>
+    {% endif %}
+  </main>
+</body>
+</html>

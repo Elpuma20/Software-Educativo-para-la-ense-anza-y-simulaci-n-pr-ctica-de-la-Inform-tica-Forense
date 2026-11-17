@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ tema.titulo }}</title></head>
+<body>
+  <main>
+    <p><a href="{% url 'contenidos:lista_temas' %}">Volver a los temas</a></p>
+    <h1>{{ tema.titulo }}</h1>
+    {% if tema.objetivos_aprendizaje %}<h2>Objetivos de aprendizaje</h2><p>{{ tema.objetivos_aprendizaje|linebreaks }}</p>{% endif %}
+    <article>{{ tema.contenido_markdown|linebreaks }}</article>
+    <h2>Casos prácticos relacionados</h2>
+    <ul>{% for caso in tema.casos_practicos.all %}{% if caso.activo %}<li>{{ caso.titulo }} — {{ caso.get_dificultad_display }}</li>{% endif %}{% empty %}<li>No hay casos asociados todavía.</li>{% endfor %}</ul>
+  </main>
+</body>
+</html>

@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Temas teóricos</title></head>
+<body>
+  <main>
+    <h1>Temas teóricos</h1>
+    <ul>
+      {% for tema in temas %}<li><a href="{% url 'contenidos:detalle_tema' tema.id %}">{{ tema.titulo }}</a></li>
+      {% empty %}<li>Aún no hay temas publicados.</li>{% endfor %}
+    </ul>
+  </main>
+</body>
+</html>
